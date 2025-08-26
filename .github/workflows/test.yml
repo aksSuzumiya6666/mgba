@@ -40,17 +40,18 @@ jobs:
       run: |
         mkdir -p build
         cd build
-        cmake .. -G "MSYS Makefiles"
+        cmake .. -G "MSYS Makefiles" -DCMAKE_BUILD_TYPE=Release
         make -j$(nproc --ignore=1)
 
-    - name: Package build artifacts
+    - name: Package with cpack (including necessary DLLs)
       shell: msys2 {0}
       run: |
         cd build
-        cpack -G ZIP
+        cpack -G ZIP -C Release
 
-    - name: Upload build artifacts
+    - name: Upload distribution package
       uses: actions/upload-artifact@v4
       with:
-        name: mgba-windows-build
+        name: mgba-windows-distribution
         path: build/*.zip
+        retention-days: 14
