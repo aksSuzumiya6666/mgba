@@ -40,71 +40,16 @@ jobs:
       run: |
         mkdir -p build
         cd build
-        cmake .. -G "MSYS Makefiles" -DCMAKE_BUILD_TYPE=Release -DBUILD_QT=ON
+        cmake .. -G "MSYS Makefiles" -DCMAKE_BUILD_TYPE=Release
         make -j$(nproc --ignore=1)
-        # 列出构建产物，帮助调试
-        ls -la
+        dir
 
-    - name: Collect dependencies
+    - name: Package with cpack (including necessary DLLs)
       shell: msys2 {0}
       run: |
         cd build
-        # 创建一个目录专门存放二进制文件和依赖
-        mkdir -p dist
-        
-        # 只复制存在的可执行文件，避免错误
-        if [ -f "mgba.exe" ]; then
-          cp mgba.exe dist/
-        else
-          echo "mgba.exe not found"
-        fi
-        
-        if [ -f "mgba-qt.exe" ]; then
-          cp mgba-qt.exe dist/
-        else
-          echo "mgba-qt.exe not found, skipping"
-        fi
-        
-        # 检查是否有可执行文件被复制
-        if [ -z "$(ls -A dist/*.exe 2>/dev/null)" ]; then
-          echo "Error: No executable files found for packaging"
-          exit 1
-        fi
-        
-        # 使用ntldd工具查找并复制所有依赖的DLL
-        for exe in dist/*.exe; do
-          ntldd -R $exe | grep -o '/mingw64/bin/[^ ]*' | while read -r dll; do
-            cp "$dll" dist/
-          done
-        done
-        
-        # 手动复制一些可能被遗漏的DLL
-        cp /mingw64/bin/Qt5Core.dll dist/ 2>/dev/null || true
-        cp /mingw64/bin/Qt5Gui.dll dist/ 2>/dev/null || true
-        cp /mingw64/bin/Qt5Widgets.dll dist/ 2>/dev/null || true
-        cp /mingw64/bin/Qt5Multimedia.dll dist/ 2>/dev/null || true
-        cp /mingw64/bin/SDL2.dll dist/ 2>/dev/null || true
-        cp /mingw64/bin/libpng16-16.dll dist/ 2>/dev/null || true
-        cp /mingw64/bin/zlib1.dll dist/ 2>/dev/null || true
-        cp /mingw64/bin/avcodec-59.dll dist/ 2>/dev/null || true
-        cp /mingw64/bin/avformat-59.dll dist/ 2>/dev/null || true
-        cp /mingw64/bin/avutil-57.dll dist/ 2>/dev/null || true
-        cp /mingw64/bin/swscale-6.dll dist/ 2>/dev/null || true
-        
-        # 将其他必要文件复制到dist目录
-        if [ -d "../res" ]; then
-          cp -r ../res dist/
-        fi
-        if [ -d "../share" ]; then
-          cp -r ../share dist/
-        fi
-
-    - name: Package with cpack
-      shell: msys2 {0}
-      run: |
-        cd build
-        cmake -E chdir dist cpack -G ZIP -C Release
-        mv dist/*.zip . || true
+        dir
+        cpack -G ZIP -C Release
 
     - name: Upload distribution package
       uses: actions/upload-artifact@v4
