@@ -1,0 +1,56 @@
+name: Windows Build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout source code
+      uses: actions/checkout@v4
+
+    - name: Set up MSYS2
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: true
+        install: >-
+          base-devel
+          git
+          mingw-w64-x86_64-cmake
+          mingw-w64-x86_64-gcc
+          mingw-w64-x86_64-gdb
+          mingw-w64-x86_64-libelf
+          mingw-w64-x86_64-libepoxy
+          mingw-w64-x86_64-libzip
+          mingw-w64-x86_64-lua
+          mingw-w64-x86_64-pkgconf
+          mingw-w64-x86_64-qt5
+          mingw-w64-x86_64-SDL2
+          mingw-w64-x86_64-ntldd-git
+          mingw-w64-x86_64-ffmpeg
+
+    - name: Build mGBA
+      shell: msys2 {0}
+      run: |
+        mkdir -p build
+        cd build
+        cmake .. -G "MSYS Makefiles"
+        make -j$(nproc --ignore=1)
+
+    - name: Package build artifacts
+      shell: msys2 {0}
+      run: |
+        cd build
+        cpack -G ZIP
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: mgba-windows-build
+        path: build/*.zip
