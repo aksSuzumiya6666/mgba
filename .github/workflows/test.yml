@@ -43,11 +43,45 @@ jobs:
         cmake .. -G "MSYS Makefiles" -DCMAKE_BUILD_TYPE=Release
         make -j$(nproc --ignore=1)
 
+    - name: Collect dependencies
+      shell: msys2 {0}
+      run: |
+        cd build
+        # 创建一个目录专门存放二进制文件和依赖
+        mkdir -p dist
+        cp mgba.exe dist/
+        cp mgba-qt.exe dist/
+        
+        # 使用ntldd工具查找并复制所有依赖的DLL
+        for exe in mgba.exe mgba-qt.exe; do
+          ntldd -R $exe | grep -o '/mingw64/bin/[^ ]*' | while read -r dll; do
+            cp "$dll" dist/
+          done
+        done
+        
+        # 手动复制一些可能被遗漏的Qt和SDL相关DLL
+        cp /mingw64/bin/Qt5Core.dll dist/
+        cp /mingw64/bin/Qt5Gui.dll dist/
+        cp /mingw64/bin/Qt5Widgets.dll dist/
+        cp /mingw64/bin/Qt5Multimedia.dll dist/
+        cp /mingw64/bin/SDL2.dll dist/
+        cp /mingw64/bin/libpng16-16.dll dist/
+        cp /mingw64/bin/zlib1.dll dist/
+        cp /mingw64/bin/avcodec-59.dll dist/
+        cp /mingw64/bin/avformat-59.dll dist/
+        cp /mingw64/bin/avutil-57.dll dist/
+        
+        # 将其他必要文件复制到dist目录
+        cp -r ../res dist/
+        cp -r ../share dist/
+
     - name: Package with cpack (including necessary DLLs)
       shell: msys2 {0}
       run: |
         cd build
-        cpack -G ZIP -C Release
+        # 使用cpack打包dist目录
+        cmake -E chdir dist cpack -G ZIP -C Release
+        mv dist/*.zip .
 
     - name: Upload distribution package
       uses: actions/upload-artifact@v4
