@@ -35,23 +35,38 @@ jobs:
           mingw-w64-x86_64-SDL2
           mingw-w64-x86_64-ntldd-git
           mingw-w64-x86_64-ffmpeg
-    - name: Build mGBA
+          mingw-w64-x86_64-ninja
+
+    - name: Configure
+      shell: msys2 {0}
+      run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$PWD/build/install"
+
+    - name: Build
+      shell: msys2 {0}
+      run: cmake --build build --config Release
+
+    - name: Collect runtime DLLs
       shell: msys2 {0}
       run: |
-        mkdir -p build
-        cd build
-        cmake .. -G "MSYS Makefiles" -DCMAKE_BUILD_TYPE=Release
-        make -j$(nproc --ignore=1)
-        dir
-    - name: Package with cpack (including necessary DLLs)
+        cmake --install build --config Release
+        appdir="$PWD/build/install/bin"
+        mkdir -p "$appdir"
+        for exe in "$appdir"/*.exe; do
+          [ -f "$exe" ] || continue
+          /mingw64/qt5/bin/windeployqt.exe --no-translations --dir "$appdir" "$exe" 2>/dev/null || true
+        done
+        for bin in "$appdir"/*.exe "$appdir"/*.dll; do
+          [ -f "$bin" ] || continue
+          ntldd -R "$bin" | awk '/=>/ && $3 ~ /^\/mingw64\/bin\// {print $3}' | sort -u | xargs -r -I{} cp -u {} "$appdir/"
+        done
+
+    - name: Package
       shell: msys2 {0}
-      run: |
-        cd build
-        dir
-        cpack -G ZIP -C Release
+      run: cmake -E tar cf build/mgba-windows.zip --format=zip -C build/install .
+
     - name: Upload distribution package
       uses: actions/upload-artifact@v4
       with:
         name: mgba-windows-distribution
-        path: build/*.zip
+        path: build/mgba-windows.zip
         retention-days: 14
