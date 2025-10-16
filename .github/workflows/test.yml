@@ -55,17 +55,17 @@ jobs:
         if [ -f "$qt_exe" ]; then
           /mingw64/bin/windeployqt.exe --no-translations --release --dir "$appdir" "$qt_exe" || true
         fi
-        mapfile -t bins < <(find "$appdir" -maxdepth 1 -type f \( -name '*.exe' -o -name '*.dll' \))
-        if [ ${#bins[@]} -gt 0 ]; then
-          while IFS= read -r dep; do
-            [ -f "$dep" ] && cp -u "$dep" "$appdir"/
-          done < <(
-            printf '%s\0' "${bins[@]}" |
-            xargs -0 -I{} ntldd -R "{}" |
-            awk '/=>/ && $3 ~ /^\/mingw64\/bin\// {print $3}' |
-            sort -u
-          )
-        fi
+        mapfile -t bins < <(find "$appdir" -maxdepth 1 -type f \( -iname '*.exe' -o -iname '*.dll' \))
+        for bin in "${bins[@]}"; do
+          ntldd -R "$bin" | sed -n 's/.*=> \(.*\) (0x[0-9a-fA-F]\+)/\1/p' | while read -r dep; do
+            [ -z "$dep" ] && continue
+            dep_unix=$(cygpath -u "$dep" 2>/dev/null || true)
+            [ -z "$dep_unix" ] && continue
+            case "$dep_unix" in
+              /mingw64/bin/*) cp -u "$dep_unix" "$appdir/";;
+            esac
+          done
+        done
 
     - name: Package
       shell: msys2 {0}
