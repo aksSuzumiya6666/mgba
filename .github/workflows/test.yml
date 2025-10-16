@@ -1,4 +1,4 @@
-name: Windows MSYS2 Build
+name: Windows Build
 
 on:
   push:
@@ -7,96 +7,51 @@ on:
     branches: [ master ]
 
 jobs:
-  build-msys2:
+  build:
     runs-on: windows-latest
+
     steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
-        with:
-          submodules: 'recursive'
-          fetch-depth: 0
+    - name: Checkout source code
+      uses: actions/checkout@v4
 
-      - name: Set up MSYS2 (use MINGW32 for 32-bit, MINGW64 for 64-bit)
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: MINGW64
-          update: true
-          install: >-
-            base-devel
-            git
-            mingw-w64-x86_64-cmake
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-gdb
-            mingw-w64-x86_64-libelf
-            mingw-w64-x86_64-libepoxy
-            mingw-w64-x86_64-libzip
-            mingw-w64-x86_64-lua
-            mingw-w64-x86_64-pkgconf
-            mingw-w64-x86_64-qt5
-            mingw-w64-x86_64-SDL2
-            mingw-w64-x86_64-ntldd-git
-            mingw-w64-x86_64-ffmpeg
-            zip
-
-      - name: Build (MSYS2 shell)
-        shell: msys2 {0}
-        run: |
-          set -e
-          mkdir -p build
-          cd build
-          cmake .. -G "MSYS Makefiles" -DCMAKE_BUILD_TYPE=Release
-          make -j$(nproc --ignore=1)
-          ls -la
-
-      - name: Collect runtime DLLs with ntldd (prepare dist/)
-        shell: msys2 {0}
-        run: |
-          set -e
-          cd build
-          rm -rf dist
-          mkdir -p dist/bin
-          # copy built EXE/DLLs into dist/bin
-          find . -maxdepth 2 -type f \( -name '*.exe' -o -name '*.dll' \) -exec cp -u {} dist/bin/ \;
-          # for each binary, use ntldd to list dependencies and copy them into dist/bin
-          for b in dist/bin/*; do
-            [ -f "$b" ] || continue
-            ntldd "$b" | awk '/=>/ {print $3} /^[^ ]+ *\\(0x/ {print $1}' | while read -r dep; do
-              if [ -z "$dep" ]; then continue; fi
-              if [ -f "$dep" ]; then
-                cp -u "$dep" dist/bin/ || true
-              else
-                # sometimes ntldd prints Windows style paths; try to normalize common mingw paths
-                case "$dep" in
-                  /mingw64/*|/usr/*) if [ -f "$dep" ]; then cp -u "$dep" dist/bin/ || true; fi ;;
-                esac
-              fi
-            done
-          done
-          echo "Collected files:"
-          ls -la dist/bin
-
-      - name: Create manual ZIP including DLLs (fallback packaging)
-        shell: msys2 {0}
-        run: |
-          set -e
-          cd build
-          rm -f mgba-windows-with-dlls.zip
-          zip -r9 mgba-windows-with-dlls.zip dist
-          ls -la *.zip || true
-
-      - name: Package with cpack (including necessary DLLs if install rules include them)
-        shell: msys2 {0}
-        run: |
-          set -e
-          cd build
-          cpack -G ZIP -C Release || true
-          ls -la
-
-      - name: Upload distribution packages
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-distribution
-          path: |
-            build/*.zip
-            build/dist/**
-          retention-days: 14
+    - name: Set up MSYS2
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: true
+        install: >-
+          base-devel
+          git
+          mingw-w64-x86_64-cmake
+          mingw-w64-x86_64-gcc
+          mingw-w64-x86_64-gdb
+          mingw-w64-x86_64-libelf
+          mingw-w64-x86_64-libepoxy
+          mingw-w64-x86_64-libzip
+          mingw-w64-x86_64-lua
+          mingw-w64-x86_64-pkgconf
+          mingw-w64-x86_64-qt5
+          mingw-w64-x86_64-qt5-tools
+          mingw-w64-x86_64-SDL2
+          mingw-w64-x86_64-ntldd-git
+          mingw-w64-x86_64-ffmpeg
+    - name: Build mGBA
+      shell: msys2 {0}
+      run: |
+        mkdir -p build
+        cd build
+        cmake .. -G "MSYS Makefiles" -DCMAKE_BUILD_TYPE=Release
+        make -j$(nproc --ignore=1)
+        dir
+    - name: Package with cpack (including necessary DLLs)
+      shell: msys2 {0}
+      run: |
+        cd build
+        dir
+        cpack -G ZIP -C Release
+    - name: Upload distribution package
+      uses: actions/upload-artifact@v4
+      with:
+        name: mgba-windows-distribution
+        path: build/*.zip
+        retention-days: 14
