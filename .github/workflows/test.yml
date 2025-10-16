@@ -48,21 +48,29 @@ jobs:
     - name: Collect runtime DLLs
       shell: msys2 {0}
       run: |
+        set -e
         cmake --install build --config Release
-        appdir="$PWD/build/install/bin"
-        mkdir -p "$appdir"
-        for exe in "$appdir"/*.exe; do
-          [ -f "$exe" ] || continue
-          /mingw64/qt5/bin/windeployqt.exe --no-translations --dir "$appdir" "$exe" 2>/dev/null || true
-        done
-        for bin in "$appdir"/*.exe "$appdir"/*.dll; do
-          [ -f "$bin" ] || continue
-          ntldd -R "$bin" | awk '/=>/ && $3 ~ /^\/mingw64\/bin\// {print $3}' | sort -u | xargs -r -I{} cp -u {} "$appdir/"
-        done
+        appdir="$PWD/build/install"
+        qt_exe="$appdir/mGBA.exe"
+        if [ -f "$qt_exe" ]; then
+          /mingw64/bin/windeployqt.exe --no-translations --release --dir "$appdir" "$qt_exe" || true
+        fi
+        mapfile -t bins < <(find "$appdir" -maxdepth 1 -type f \( -name '*.exe' -o -name '*.dll' \))
+        if [ ${#bins[@]} -gt 0 ]; then
+          while IFS= read -r dep; do
+            [ -f "$dep" ] && cp -u "$dep" "$appdir"/
+          done < <(
+            printf '%s\0' "${bins[@]}" |
+            xargs -0 -I{} ntldd -R "{}" |
+            awk '/=>/ && $3 ~ /^\/mingw64\/bin\// {print $3}' |
+            sort -u
+          )
+        fi
 
     - name: Package
       shell: msys2 {0}
-      run: cmake -E tar cf build/mgba-windows.zip --format=zip -C build/install .
+      run: |
+        cmake -E chdir build/install cmake -E tar cf ../mgba-windows.zip --format=zip .
 
     - name: Upload distribution package
       uses: actions/upload-artifact@v4
