@@ -14,11 +14,14 @@ Features:
  - New unlicensed GB mappers: NT (older types 1 and 2), Li Cheng, GGB-81, Sintax
  - Initial support for bootleg GBA multicarts
  - Debugger: Add range watchpoints
+ - Debugger: Add enabling/disabling for breakpoints and watchpoints
  - "Headless" frontend for running tests, automation, etc.
 Emulation fixes:
  - ARM: Add framework for coprocessor support
  - ARM: cmn/cmp/teq/tst pc shouldn't flush the pipeline
  - ARM: Remove erroneous SMLAL(S) decodings (fixes mgba.io/i/3544)
+ - ARM: Fix LDRT/STRT register-index addressing (fixes mgba.io/i/3586)
+ - GB MBC: Fix MBC3 SRAM enable writes other than 0 and A
  - GB Memory: Initialize HRAM when skipping BIOS in GBC mode (fixes mgba.io/i/3420)
  - GB Memory: Fix initial WRAM pattern when skipping BIOS in GBC mode (fixes mgba.io/i/2704)
  - GB Serialize: Add missing Pocket Cam state to savestates
@@ -52,6 +55,7 @@ Misc:
  - FFmpeg: Add Ut Video option
  - GB: Prevent incompatible BIOSes from being used on differing models
  - GB MBC: Add M161 support for one Mani 4-in-1 multicart
+ - GB Memory: Decay cart bus eagerly when executing from RAM
  - GB Serialize: Add missing savestate support for MBC6 and NT (newer)
  - GBA: Improve detection of valid ELF ROMs
  - GBA Audio: Remove broken XQ audio pending rewrite
@@ -78,6 +82,9 @@ Misc:
  - Qt: Throttle fatal error dialogs
  - Qt: Add save info to bug report logs
  - Qt: Show filename of loaded TBL in memory view (closes mgba.io/i/2815)
+ - Qt: Increase gamepad polling frequency
+ - Qt: Show menu when right clicking too
+ - Qt: Allow menu bar to be temporarily hidden (closes mgba.io/i/1448)
  - Res: Port hq2x and OmniScale shaders from SameBoy
  - Res: Port NSO-gba-colors shader (closes mgba.io/i/2834)
  - Res: Update gba-colors shader (closes mgba.io/i/2976)
